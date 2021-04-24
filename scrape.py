@@ -65,6 +65,7 @@ def cross_infinite_world(date = date.today()): # todo
     Returns empty list:
     []
     '''
+    
     result = []
     return result
 
@@ -80,29 +81,36 @@ def dark_horse(date = date.today()):
     url = f'https://www.darkhorse.com/Search/Browse/"vampire+hunter+d"---Books---{date.strftime("%B+%Y")}-December+2099/Ppydwkt8'
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
     
-    for volume in soup.find_all('div', class_='list_item'):
-        href = volume.find('a')['href']
+    for item in soup.find_all('div', class_='list_item'):
+        href = item.find('a')['href']
         result.append(dark_horse_volume(urljoin(url, href), date))
     
     return result
 
 def dark_horse_volume(url, date = date.today()):
+    """
+    Dark Horse calendar does not have all information on it,
+    need to check individual volume pages to get release date.
+    Returns a dictionaries:
+    {'date', 'title', 'volume', 'publisher':'Dark Horse', 'store_link', 'format':'Physical & Digital'}
+    """
     
     result = []
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
     
     title_text = soup.find('h2', class_='title').get_text(strip=True)
+    if ':' in title:
+        title_text = title_text[:title_text.find(':')]
     if 'Volume' in title_text:
         title_text_split = title_text.split(' Volume ')
-        volume_text = title_text_split[1].split(':')
-        title = title_text[0] + ':' + volume_text[1]
-        volume = volume_text[0]
+        title = title_text_split[0]
+        volume = title_text_split[1].split(':')[0]
     else:
         title = title_text
         volume = '1'
     
     details = soup.find('div', class_='product-meta').find_all('dd')
-    release_date = details[0].get_text(strip=True)
+    release_date = datetime.strptime(details[0].get_text(strip=True), '%B %d, %Y').date()
     format_type = details[1].get_text(strip=True)
     
     return {'date': release_date,
@@ -110,33 +118,72 @@ def dark_horse_volume(url, date = date.today()):
             'volume': volume,
             'publisher': 'Dark Horse',
             'store_link': url,
-            'format': format_type}
+            'format': 'Physical & Digital'}
 
-    """
+def j_novel_club(date = date.today()): # todo
+    '''
+    J-Novel Club's website is currently in flux;
+    the calendar page often fails to load correctly.
+    It also does not currently have physical releases listed, only digital.
+    To be completed later.
+    Returns empty list:
+    []
+    '''
+    
     result = []
-    driver.get(f'https://www.darkhorse.com/Search/Browse/"vampire+hunter+d"---Books---{today.strftime("%B+%Y")}-December+9999/Ppydwkt8')#open driver to search url, includes filtering by release date
-    try:
-        driver.find_element_by_xpath('//*[@id="display_images"]/input[2]').click()#turns "Display Images" off, which shows release dates
-    except NoSuchElementException:#"Display Images" button does not appear if the search result is empty
-        print(f'Failed to read data or no releases found for Dark Horse, completed at {perf_counter()-start_time}')
-        return result
-    sleep(sleep_time)
-    soup = BeautifulSoup(driver.execute_script('return document.body.innerHTML'), 'html.parser')
-    for item in soup.find('table', class_='product_text_items').find_all('tr')[1:]:#iterate through every item on search page, skipping first row of headers
-        item_data = item.find_all('td')
-        date = datetime.strptime(item_data[1].get_text(strip=True), '%b %d, %Y').date()
-        if date < today: continue#skips item if it is before target date
-        title_volume_link = item_data[0].find('a')
-        title_volume = title_volume_link.get_text(strip=True).replace(' TPB', '').replace(' HC', '').split(' Volume ')
-        title = title_volume[0]
-        if len(title_volume) > 1:
-            volume_subtitle = title_volume[1].split(':')
-            volume = volume_subtitle[0]
-            if len(volume_subtitle) > 1: title += f':{volume_subtitle[1]}'
-        else: volume = '1'
-        link = f'https://www.darkhorse.com{title_volume_link["href"]}'
-        release = {'date': date, 'title': title, 'lndb_link': '', 'volume': volume, 'publisher': 'Dark Horse', 'store_link': link, 'format': 'Physical & Digital'}
-        result.append(release)
-    print(f'{len(result)} releases found for Dark Horse, completed at {perf_counter()-start_time}')
     return result
-    """
+
+def one_peace(date = date.today()): # todo
+    '''
+    One Peace has no calendar on their website.
+    Physical and digital releases only available on Amazon.
+    To be completed later.
+    Returns empty list:
+    []
+    '''
+    
+    result = []
+    return result
+
+def seven_seas(date = date.today()):
+    '''
+    Seven Seas has two calendars:
+    one for physical, and one for digital.
+    Both are in the same format, but need to be scraped seperately.
+    Returns a list of dictionaries:
+    [{'date', 'title', 'volume', 'publisher':'Seven Seas', 'store_link', 'format'}]
+    '''
+    
+    result = []
+    urls = [('https://sevenseasentertainment.com/digital/', 'Digital'), ('https://sevenseasentertainment.com/release-dates/', 'Physical')]
+    
+    for url, format_type in urls:
+        soup = BeautifulSoup(requests.get(url).text, 'html.parser')
+        
+        for item in soup.find_all('tr', id='volumes'):
+            cells = item.find_all('td')
+            
+            date_tag = cells[0]
+            release_date = datetime.strptime(date_tag.get_text(strip=True), '%Y/%m/%d').date()
+            if release_date < date:
+                continue
+                
+            title_tag = cells[1].find('a')
+            title_split = title_tag.get_text(strip=True).replace(' (Light Novel)', '').replace(' (Novel)', '').split(' Vol. ')
+            title = title_split[0]
+            volume = title_split[-1] if len(title_split)>1 else '1 [End]'
+            link = urljoin(url, title_tag['href'])
+                
+            format_tag = cells[2]
+            if 'Novel' not in format_tag.get_text():
+                continue
+            
+            release = {'date': release_date,
+                       'title': title,
+                       'volume': volume,
+                       'publisher': 'Seven Seas',
+                       'store_link': link,
+                       'format': format_type}
+            result.append(release)
+    
+    return result
