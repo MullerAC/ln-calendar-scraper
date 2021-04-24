@@ -38,6 +38,7 @@ will need to be reworked if adding back Reddit posting part
 '''
 sleep_time = 1.0#made-up experimental universal sleep constant for slow sites
 
+"""
 def main():
     upcoming_releases = []#{date, title, lndb_link, volume, publisher, store_link, format}, all are strings
     print(f'Target date: {today}\nScraping starting at {str(perf_counter()-start_time)}')
@@ -187,62 +188,9 @@ def update_sidebar(sidebar_content):#compiles sidebar text and overwrites sideba
     sidebar_text += sidebar_content
     for widget in subreddit.widgets.sidebar:#search all sidebar widgets for Upcoming Releases widget
         if widget.kind == 'textarea' and widget.shortName == 'Upcoming Releases': widget.mod.update(text=sidebar_text)
+"""
 
-def book_walker():#gets links to all exclusive light novel series from homepage, then searches those links for upcoming releases
-    result = []
-    with urlopen('https://global.bookwalker.jp/') as site:#open homepage, get html, and close
-        soup = BeautifulSoup(site, 'html.parser')
-    series_list = []
-    for series_tags in soup.find_all('div', class_='drop-down-categories-box'):#search homepage for all exclusive light novel series
-        if 'Exclusive Light Novels' in series_tags.get_text():
-            series_list = series_tags.find_all('a')
-            break
-    for series in series_list:result.extend(bw_scrape(f'{series["href"]}/?&order=release'))#iterate through all exclusive light novel series and read results
-    for release in result: release['publisher'] = 'Book Walker'#iterates through all found releases to update publisher
-    print(f'{len(result)} releases found for Book Walker, completed at {perf_counter()-start_time}')
-    return result
-
-def cross_infinite_world_digital():#gets upcoming digital releases from Book Walker
-    '''result = bw_scrape('/publishers/1176/?np=1&order=release')#read results from Book Walker
-    for release in result: release['publisher'] = 'Cross Infinite World'#iterates through all found releases to update publisher
-    print(f'{len(result)} releases found for Cross Infinite World (digital), completed at {perf_counter()-start_time}')'''
-    result = []
-    print(f'Cross Infinite World (digital) not yet implemented, completed at {perf_counter()-start_time}')
-    return result
-
-def cross_infinite_world_physical():#not yet implemented
-    result = []
-    print(f'Cross Infinite World (physical) not yet implemented, completed at {perf_counter()-start_time}')
-    return result
-
-def dark_horse():#runs a search for Vampire Hunter D (Dark Horse's only active license) and searches that page for upcoming releases
-    result = []
-    driver.get(f'https://www.darkhorse.com/Search/Browse/"vampire+hunter+d"---Books---{today.strftime("%B+%Y")}-December+9999/Ppydwkt8')#open driver to search url, includes filtering by release date
-    try:
-        driver.find_element_by_xpath('//*[@id="display_images"]/input[2]').click()#turns "Display Images" off, which shows release dates
-    except NoSuchElementException:#"Display Images" button does not appear if the search result is empty
-        print(f'Failed to read data or no releases found for Dark Horse, completed at {perf_counter()-start_time}')
-        return result
-    sleep(sleep_time)
-    soup = BeautifulSoup(driver.execute_script('return document.body.innerHTML'), 'html.parser')
-    for item in soup.find('table', class_='product_text_items').find_all('tr')[1:]:#iterate through every item on search page, skipping first row of headers
-        item_data = item.find_all('td')
-        date = datetime.strptime(item_data[1].get_text(strip=True), '%b %d, %Y').date()
-        if date < today: continue#skips item if it is before target date
-        title_volume_link = item_data[0].find('a')
-        title_volume = title_volume_link.get_text(strip=True).replace(' TPB', '').replace(' HC', '').split(' Volume ')
-        title = title_volume[0]
-        if len(title_volume) > 1:
-            volume_subtitle = title_volume[1].split(':')
-            volume = volume_subtitle[0]
-            if len(volume_subtitle) > 1: title += f':{volume_subtitle[1]}'
-        else: volume = '1'
-        link = f'https://www.darkhorse.com{title_volume_link["href"]}'
-        release = {'date': date, 'title': title, 'lndb_link': '', 'volume': volume, 'publisher': 'Dark Horse', 'store_link': link, 'format': 'Physical & Digital'}
-        result.append(release)
-    print(f'{len(result)} releases found for Dark Horse, completed at {perf_counter()-start_time}')
-    return result
-
+'''
 def j_novel_club_beta():#gets all upcoming releases from the calendar, then searches the series nickname on the website to get the full title and link
     result = []
     month = today.month
@@ -297,32 +245,6 @@ def j_novel_club_beta():#gets all upcoming releases from the calendar, then sear
     print(f'{len(result)} releases found for J-Novel Club (beta/digital), completed at {perf_counter()-start_time}')
     return result
 
-def j_novel_club_digital():#gets all upcoming releases from the calendar, then searches the series nickname on the website to get the full title and link
-    result = []
-    driver.get('https://old.j-novel.club/comingup')#open driver to calendar url
-    while True:#loop through each month of releases
-        sleep(sleep_time)
-        soup = BeautifulSoup(driver.execute_script('return document.body.innerHTML'), 'html.parser')
-        main_div = soup.find('div', class_='_3cr17rf9k2KgJzj1q6CzVI').find('div', class_='_2iUMdY')
-        if 'No releases scheduled yet!' in main_div.get_text(): break#break from loop when reaching a month with no scheduled releases
-        release_date = datetime.strptime(soup.find('div', class_='_3vBXdKgEyugvFJSj0XHYbJ').get_text().replace(' RELEASE SCHEDULE', '').strip(), '%B %Y').date()
-        if release_date.month >= today.month or release_date.year > today.year:#go to next month if calendar month is before target date
-            for item in main_div.children:#iterate through every item on page, dates and releases
-                item_text = item.get_text(strip=True)
-                try:#will change date if item is a date
-                    release_date = datetime.strptime(item_text, '%A, %B %d').date()
-                    release_date = release_date.replace(year=today.year+(release_date.month<today.month))
-                except ValueError:#if item is not a date, it is a release item
-                    if release_date < today: continue#skips item if it is before target date
-                    if any(s not in item_text for s in ['Ebook', 'Novel']): continue#skips item if not a light novel ebook release
-                    title_volume = item.find('h1').get_text(strip=True).replace(' Vol. ', ' Vol ').replace(' Volume ', ' Vol ').replace(': Vol ', ' Vol ').split(' Vol ', 1)
-                    title, volume, link = jnc_get_title_volume_link(title_volume)#searches JNC site for more accurate title and link
-                    release = {'date': release_date, 'title': title, 'lndb_link': '', 'volume': volume, 'publisher': 'J-Novel Club', 'store_link': link, 'format': 'Digital'}
-                    result.append(release)
-        driver.find_element_by_xpath('/html/body/div/div/div/div[1]/div[2]/div[1]/div[1]/div[3]/button').click()#click "NEXT MONTH" button to load next month's calendar
-    print(f'{len(result)} releases found for J-Novel Club (digital), completed at {perf_counter()-start_time}')
-    return result
-
 def j_novel_club_physical():#gets upcoming physical releases from Right Stuf Anime
     result = rsa_scrape('/category/Novels/publisher/J~NOVEL-CLUB,J~NOVEL-HEART?order=custitem_rs_release_date:desc&show=96')#read results from Right Stuf Anime
     for release in result:#iterates through all found releases to update title, link, and publisher
@@ -334,52 +256,7 @@ def j_novel_club_physical():#gets upcoming physical releases from Right Stuf Ani
         release['publisher'] = 'J-Novel Club'
     print(f'{len(result)} releases found for J-Novel Club (physical), completed at {perf_counter()-start_time}')
     return result
-
-def one_peace_digital():#gets upcoming digital releases from Book Walker
-    '''result = bw_scrape('/publishers/736/?np=1&order=release')#read results from Book Walker
-    for release in result:#iterates through all found releases to update publisher and links
-        release['publisher'] = 'One Peace Books'
-        if 'Shield Hero' in release['title']: release['store_link'] = 'https://www.onepeacebooks.com/jt/ShieldHeroLNV.html'
-        elif 'Spear Hero' in release['title']: release['store_link'] = 'https://www.onepeacebooks.com/jt/SpearHeroLNV.html'
-    print(f'{len(result)} releases found for One Peace (digital), completed at {perf_counter()-start_time}')'''
-    result = []
-    print(f'One Peace (digital) not yet implemented, completed at {perf_counter()-start_time}')
-    return result
-
-    return result
-
-def one_peace_physical():#gets upcoming physical releases from Right Stuf Anime
-    '''result = rsa_scrape('/category/Novels/publisher/ONE-PEACE?order=custitem_rs_release_date:desc&show=96')#read results from Right Stuf Anime
-    for release in result:#iterates through all found releases to update publisher and links
-        release['publisher'] = 'One Peace Books'
-        if 'Shield Hero' in release['title']: release['store_link'] = 'https://www.onepeacebooks.com/jt/ShieldHeroLNV.html'
-        elif 'Spear Hero' in release['title']: release['store_link'] = 'https://www.onepeacebooks.com/jt/SpearHeroLNV.html'
-    print(f'{len(result)} releases found for One Peace (physical), completed at {perf_counter()-start_time}')'''
-    result = []
-    print(f'One Peace (physical) not yet implemented, completed at {perf_counter()-start_time}')
-    return result
-
-    return result
-
-def seven_seas():#digital and physical releases are on two separate calendars
-    result = []
-    urls = {'https://sevenseasentertainment.com/digital/': 'Digital', 'https://sevenseasentertainment.com/release-dates/': 'Physical'}
-    for url in urls.keys():#repeats for both digital and physical calendars
-        with urlopen(url) as site:#open calendar, get html, and close
-            soup = BeautifulSoup(site, 'html.parser')
-        for item in soup.find_all('tr', id='volumes'):#iterate through every item on page
-            if 'Novel' not in item.get_text(): continue#skip item if it is not a light novel
-            release_date = datetime.strptime(item.find('td').get_text(strip=True), '%Y/%m/%d').date()
-            if release_date < today: continue#skips item if it is before target date
-            title_volume_link = item.find('a')
-            title_volume = title_volume_link.get_text(strip=True).replace(' (Light Novel)', '').replace(' (Novel)', '').split(' Vol. ')
-            title = title_volume[0]
-            volume = title_volume[-1] if len(title_volume)>1 else '1'
-            link = title_volume_link['href']
-            release = {'date': release_date, 'title': title, 'lndb_link': '', 'volume': volume, 'publisher': 'Seven Seas', 'store_link': link, 'format': urls[url]}
-            result.append(release)
-    print(f'{len(result)} releases found for Seven Seas, completed at {perf_counter()-start_time}')
-    return result
+'''
 
 def sol_press_digital():#gets upcoming digital releases from SOl PRess's website calendar
     result = []
