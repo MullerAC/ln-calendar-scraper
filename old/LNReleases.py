@@ -258,35 +258,6 @@ def j_novel_club_physical():#gets upcoming physical releases from Right Stuf Ani
     return result
 '''
 
-def sol_press_digital():#gets upcoming digital releases from SOl PRess's website calendar
-    result = []
-    with urlopen('https://solpress.co/light-novels') as site:#open calendar, get html, and close
-        soup = BeautifulSoup(site, 'html.parser')
-    for item in soup.find_all('section', class_='details'):#iterate through every item on page
-        release_date_text = item.find('section').find_all('strong')[1].get_text(strip=True).split(',')
-        if release_date_text[0] == 'To be announced': continue#skips item if it has no set date
-        release_date_text[0] = release_date_text[0][:-2]
-        release_date = datetime.strptime(','.join(release_date_text), '%B %d, %Y').date()
-        if release_date < today: break#breaks loop if the date has gone past the target date
-        title_volume_link = item.find('a')
-        title_volume = title_volume_link.get_text(strip=True).replace(' (light novel)', '').split(' Vol. ')
-        title = title_volume[0]
-        if len(title_volume) > 1:
-            volume_subtitle = title_volume[1].split(':')
-            volume = volume_subtitle[0]
-            if len(volume_subtitle) > 1: title += f':{volume_subtitle[1]}'
-        else: volume = '1'
-        link = f'https://solpress.co{title_volume_link["href"]}'
-        release = {'date': release_date, 'title': title, 'lndb_link': '', 'volume': volume, 'publisher': 'Sol Press', 'store_link': link, 'format': 'Digital'}
-        result.append(release)
-    print(f'{len(result)} releases found for Sol Press (digital), completed at {perf_counter()-start_time}')
-    return result
-
-def sol_press_physical():#no upcoming releases scheduled at the moment
-    result = []
-    print(f'Sol Press (physical) not yet implemented, completed at {perf_counter()-start_time}')
-    return result
-
 def square_enix():#opens every release on calendar to get light novels
     result = []
     driver.get('https://squareenixmangaandbooks.square-enix-games.com/en-us/release-calendar')#open driver to calendar url
