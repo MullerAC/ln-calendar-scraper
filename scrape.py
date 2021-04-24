@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 from datetime import date, datetime
+from dateutil.parser import parse
 import requests
 from urllib.parse import urljoin
 
@@ -37,7 +38,7 @@ def book_walker_series(url, date = date.today()):
         date_tag = item.find('div', class_='a-tile-release-date')
         if date_tag is None:
             break
-        release_date = datetime.strptime(date_tag.get_text(strip=True).replace('.', ' '), '%b %d release').date()
+        release_date = parse(date_tag.get_text(strip=True).replace('.', ' ')).date()
         release_date = release_date.replace(year=date.year+(release_date.month<date.month))
         if release_date < date:
             break
@@ -98,10 +99,8 @@ def dark_horse_volume(url, date = date.today()):
     result = []
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
     
-    title_text = soup.find('h2', class_='title').get_text(strip=True)
-    if ':' in title:
-        title_text = title_text[:title_text.find(':')]
-    if 'Volume' in title_text:
+    title_text = soup.find('h2', class_='title').get_text(strip=True).split(':')[0]
+    if ' Volume ' in title_text:
         title_text_split = title_text.split(' Volume ')
         title = title_text_split[0]
         volume = title_text_split[1].split(':')[0]
@@ -110,8 +109,8 @@ def dark_horse_volume(url, date = date.today()):
         volume = '1'
     
     details = soup.find('div', class_='product-meta').find_all('dd')
-    release_date = datetime.strptime(details[0].get_text(strip=True), '%B %d, %Y').date()
-    format_type = details[1].get_text(strip=True)
+    release_date = parse(details[0].get_text(strip=True)).date()
+    # format_type = details[1].get_text(strip=True)
     
     return {'date': release_date,
             'title': title,
@@ -164,7 +163,8 @@ def seven_seas(date = date.today()):
             cells = item.find_all('td')
             
             date_tag = cells[0]
-            release_date = datetime.strptime(date_tag.get_text(strip=True), '%Y/%m/%d').date()
+            #release_date = datetime.strptime(date_tag.get_text(strip=True), '%Y/%m/%d').date()
+            release_date = parse(date_tag.get_text(strip=True)).date()
             if release_date < date:
                 continue
                 
@@ -186,4 +186,36 @@ def seven_seas(date = date.today()):
                        'format': format_type}
             result.append(release)
     
+    return result
+
+def sol_press(date = date.today()):
+    '''
+    Sol Press only lists digital releases on their calendar.
+    May need to revisit if they add physicals.
+    No releases are currently scheduled, will need to test later.
+    Returns a list of dictionaries:
+    [{'date', 'title', 'volume', 'publisher':'Sol Press', 'store_link', 'format':'Digital'}]
+    '''
+
+    result = []
+    url = 'https://solpress.co/light-novels'
+    soup = BeautifulSoup(requests.get(url).text, 'html.parser')
+
+    for item in soup.find_all('section', class_='details'):
+        title_tag = item.find('a')
+        title_split = title_tag.get_text(strip=True).replace(' (light novel)', '').split(' Vol. ')
+        title = title_split[0]
+        volume = title_split[1].split(':')[0] if len(title_split)>1 else '1'
+        link = urljoin(url, title_tag['href'])
+
+        release_date_text = item.find('section', class_='secondary-details').find_all('strong')[-1].get_text(strip=True)
+        if 'To be announced' in release_date_text[0]:
+            continue
+        release_date = parse(release_date_text).date()
+        if release_date < date:
+            break
+
+        release = {'date': release_date, 'title': title, 'volume': volume, 'publisher': 'Sol Press', 'store_link': link, 'format': 'Digital'}
+        result.append(release)
+
     return result
