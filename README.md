@@ -3,13 +3,17 @@
 Uses Python (requests, BeautifulSoup, Selenium) to scrape calendars of various English-language translators of light novels. Formats the scraped data with Reddit markdown for use on [/r/LightNovels](https://www.reddit.com/r/LightNovels/) [upcoming releases wiki](https://www.reddit.com/r/LightNovels/wiki/upcomingreleases).
 
 List of publishers to be supported:
+
+working:
 - Bookwalker
-- Cross Infinite World
 - Dark Horse
-- J-Novel Club
-- One Peace Books
 - Seven Seas
 - Sol Press
+
+to do:
+- Cross Infinite World
+- J-Novel Club
+- One Peace Books
 - Square Enix
 - Tentai Books
 - Tokyo Pop
