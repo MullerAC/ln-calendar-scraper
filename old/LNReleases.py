@@ -291,62 +291,6 @@ def square_enix():#opens every release on calendar to get light novels
     print(f'{len(result)} releases found for Square Enix, completed at {perf_counter()-start_time}')
     return result
 
-def tentai_digital():
-    result = []
-    print(f'Tentai (digital) not yet implemented, completed at {perf_counter()-start_time}')
-    return result
-
-def tentai_physical():
-    result = []
-    print(f'Tentai (physical) not yet implemented, completed at {perf_counter()-start_time}')
-    return result
-
-def vertical_digital():#not yet implemented
-    result = []
-    print(f'Vertical (digital) not yet implemented, completed at {perf_counter()-start_time}')
-    return result
-
-def vertical_physical():#gets upcoming physical releases from Right Stuf Anime
-    result = rsa_scrape('/category/Novels/publisher/VERTICAL?order=custitem_rs_release_date:desc&show=96')#read results from Right Stuf Anime
-    for release in result:
-        release['publisher'] = 'Vertical'#iterates through all found releases to update publisher
-        '''search_text = f'{release["title"]} Volume {release["volume"]}'
-        release['store_link'] = 'Vertical'#iterates through all found releases to update publisher'''#auto-searching Random Penguin House seems inconsistent
-        #release['store_link'] = 'N/A'
-    print(f'{len(result)} releases found for Vertical (physical), completed at {perf_counter()-start_time}')
-    return result
-
-def viz_media():#gets upcoming releases from calendar, searches release page for format
-    result = []
-    url_base = 'https://www.viz.com/calendar/'
-    m, y = today.month, today.year
-    while True:#loops until no more releases are found
-        with urlopen(f'{url_base}{y}/{m}') as site:#open calendar for next month, get html, and close
-            soup = BeautifulSoup(site, 'html.parser')
-        table = soup.find('table', class_='product-table')
-        if table is None: break#break loop if no next month calendar is found
-        for item in table.find_all('tr'):#iterate through every item in page
-            item_text = []
-            for cell in item.find_all('td'):#split up information for item
-                item_text.append(cell.get_text(strip=True))
-            if 'Novel' not in item_text[2]: continue#skip item if it is not a light novel
-            release_date = datetime.strptime(item_text[4], '%b %d').date()
-            release_date = release_date.replace(year=y)
-            title_volume = item_text[3].split(', Vol. ')
-            title = title_volume[0]
-            volume = title_volume[-1] if len(title_volume)>1 else '1'
-            link_end = item.find("a")["href"].replace('/paperback','').replace('/hardcover','').replace('/digital','')
-            link = f'https://www.viz.com{link_end}'
-            with urlopen(link) as site_secondary:#open item link page, get html, and close
-                soup_secondary = BeautifulSoup(site_secondary, 'html.parser')
-            format = get_format(soup_secondary.find('div', class_='type-rg type-md--md weight-bold').get_text())
-            release = {'date': release_date, 'title': title, 'lndb_link': '', 'volume': volume, 'publisher': 'Viz Media', 'store_link': link, 'format': format}
-            result.append(release)
-        m = m+1 if m<12 else 1
-        y = y+1 if m==1 else y
-    print(f'{len(result)} releases found for Viz Media, completed at {perf_counter()-start_time}')
-    return result
-
 def yen_press():#gets links to releases from calendar, opens item links to get rest of information
     result = []
     with urlopen(Request('https://yenpress.com/yen-on/', headers={'User-Agent': 'Mozilla/5.0'})) as site:#spoof as a normal browser, open calendar, get html, and close
@@ -365,33 +309,6 @@ def yen_press():#gets links to releases from calendar, opens item links to get r
             release = {'date': release_date, 'title': title, 'lndb_link': '', 'volume': volume, 'publisher': 'Yen Press', 'store_link': link, 'format': format}
             result.append(release)
     print(f'{len(result)} releases found for Yen Press, completed at {perf_counter()-start_time}')
-    return result
-
-def get_format(format_text):#reads text to determine format type
-    format = []
-    if 'Paperback' in format_text or 'Hardcover' in format_text: format.append('Physical')
-    if 'Digital' in format_text: format.append('Digital')
-    if not format: format.append('N/A')
-    return ' & '.join(format)
-
-def bw_scrape(url):#scrape needed digital release data for any publisher from Book Walker, given the url
-    result = []
-    with urlopen(f'https://global.bookwalker.jp{url}') as site:#open page on Book Walker, get html, and close
-        soup = BeautifulSoup(site, 'html.parser')
-    for item in soup.find_all('li', class_='o-tile'):#iterate through every item on page
-        date_tag = item.find('div', class_='a-tile-release-date')
-        if date_tag is None: break#break loop if item found with no upcoming release date (already released)
-        release_date = datetime.strptime(date_tag.get_text(strip=True).replace('.', ' '), '%b %d release').date()
-        release_date = release_date.replace(year=today.year+(release_date.month<today.month))
-        if release_date < today: break#break loop if date is earlier than target date
-        if 'Novel' not in item.find('ul', class_='m-tile-tag-box').get_text(): continue#skip item if it is not a light novel
-        title_volume_link = item.find('h2', class_='a-tile-ttl').find('a')
-        title_volume = title_volume_link.get_text(strip=True).split(' Volume ')
-        title = title_volume[0]
-        volume = title_volume[-1] if len(title_volume)>1 else '1'
-        link = title_volume_link['href']
-        release = {'date': release_date, 'title': title, 'lndb_link': '', 'volume': volume, 'publisher': 'N/A', 'store_link': link, 'format': 'Digital'}
-        result.append(release)
     return result
 
 def rsa_scrape(url):#scrape needed physical release data for any publisher from Right Stuf Anime, given the url
