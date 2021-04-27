@@ -291,26 +291,6 @@ def square_enix():#opens every release on calendar to get light novels
     print(f'{len(result)} releases found for Square Enix, completed at {perf_counter()-start_time}')
     return result
 
-def yen_press():#gets links to releases from calendar, opens item links to get rest of information
-    result = []
-    with urlopen(Request('https://yenpress.com/yen-on/', headers={'User-Agent': 'Mozilla/5.0'})) as site:#spoof as a normal browser, open calendar, get html, and close
-        soup = BeautifulSoup(site, 'html.parser')
-    for month in soup.find_all('div', class_='book-shelf-wrap'):#iterate through every month on calendar
-        for item in month.find_all('li'):#iterate through every item in month
-            link = f'https://yenpress.com{item.find("a")["href"]}'
-            with urlopen(Request(link, headers={'User-Agent': 'Mozilla/5.0'})) as site_secondary:#spoof as a normal browser, open item link, get html, and close
-                soup_secondary = BeautifulSoup(site_secondary, 'html.parser')
-            release_date = datetime.strptime(soup_secondary.find_all('span', class_='detail-value')[-1].get_text(strip=True), '%m/%d/%Y').date()
-            if release_date < today: continue#skips item if it is before target date
-            title_volume = soup_secondary.find('h2', id='book-title').get_text(strip=True).replace(' (light novel)', '').split(', Vol. ')
-            title = title_volume[0]
-            volume = title_volume[-1] if len(title_volume)>1 else '1'
-            format = get_format(soup_secondary.find('div', id='book-format-details').get_text())
-            release = {'date': release_date, 'title': title, 'lndb_link': '', 'volume': volume, 'publisher': 'Yen Press', 'store_link': link, 'format': format}
-            result.append(release)
-    print(f'{len(result)} releases found for Yen Press, completed at {perf_counter()-start_time}')
-    return result
-
 def rsa_scrape(url):#scrape needed physical release data for any publisher from Right Stuf Anime, given the url
     result = []
     driver.get(f'https://www.rightstufanime.com{url}')
