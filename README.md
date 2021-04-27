@@ -9,6 +9,8 @@ working:
 - Dark Horse
 - Seven Seas
 - Sol Press
+- Viz Media
+- Yen Press
 
 to do:
 - Cross Infinite World
@@ -18,5 +20,3 @@ to do:
 - Tentai Books
 - Tokyo Pop
 - Vertical
-- Viz Media
-- Yen Press
