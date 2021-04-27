@@ -312,3 +312,47 @@ def viz_media(date = date.today()):
         soup = BeautifulSoup(requests.get(url + f'{y}/{m}').text, 'html.parser')
 
     return result
+
+def yen_press(date = date.today()):
+    '''
+    Yen On calendar has only light novels and a section for each month,
+    but releases are not ordered by date within each month.
+    Returns a list of dictionaries:
+    [{'date', 'title', 'volume', 'publisher':'Yen Press', 'store_link', 'format'}]
+    '''
+
+    result = []
+    url = 'https://yenpress.com/yen-on/'
+    soup = BeautifulSoup(requests.get(url).text, 'html.parser')
+    months = soup.find_all('div', class_='book-shelf-wrap')
+
+    for month in months:
+        for item in month.find_all('li'):
+            link = urljoin(url, item.find('a')['href'])
+            soup = BeautifulSoup(requests.get(link).text, 'html.parser')
+
+            title_text = soup.find('title').get_text(strip=True).split(' | ')[0].replace(' (light novel)', '').split(', Vol. ')
+            title = title_text[0]
+            volume = title_text[-1] if len(title_text)>1 else '1'
+            if title == 'Solo Leveling':
+                continue
+
+            release_date = parse(soup.find_all('span', class_='detail-value')[-1].get_text(strip=True)).date()
+            if release_date < date:
+                continue
+
+            format_text = soup.find('div', id='book-format-details').get_text()
+            if ('Paperback' in format_text) or ('Hardcover' in format_text):
+                if 'Digital' in format_text:
+                    format_type = 'Physical & Digital'
+                else:
+                    format_type = 'Physical'
+            elif 'Digital' in format_text:
+                    format_type = 'Physical & Digital'
+            else:
+                format_type = 'Other'
+            
+            release = {'date': release_date, 'title': title, 'volume': volume, 'publisher': 'Yen Press', 'store_link': link, 'format': format_type}
+            result.append(release)
+    
+    return result
