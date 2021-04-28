@@ -2,6 +2,8 @@ from bs4 import BeautifulSoup
 from datetime import date, datetime
 from dateutil.parser import parse
 import requests
+from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 from urllib.parse import urljoin
 
 def book_walker(date = date.today()):
@@ -88,7 +90,7 @@ def dark_horse(date = date.today()):
     
     return result
 
-def dark_horse_volume(url, date = date.today()):
+def dark_horse_volume(url, date = date.today()): # need to double check on format
     """
     Dark Horse calendar does not have all information on it,
     need to check individual volume pages to get release date.
@@ -222,7 +224,7 @@ def sol_press(date = date.today()):
 
 def square_enix(date = date.today()): # todo
     '''
-    Square Enix calendar does not load well,
+    Square Enix calendar does not have items in base html,
     Selenium will need to be used.
     Also has no light novel releases currently,
     and so can't be tested right now.
@@ -232,6 +234,66 @@ def square_enix(date = date.today()): # todo
     '''
     
     result = []
+    url = 'https://squareenixmangaandbooks.square-enix-games.com/en-us/release-calendar'
+    driver_options = webdriver.ChromeOptions()
+    driver_options.add_argument('headless')
+    driver_options.add_argument('log-level=2')
+    driver = webdriver.Chrome(options=driver_options)
+    driver.get(url)
+    next_month = date
+
+    while True:
+
+        try:
+            driver.find_element_by_xpath(f"//*[contains(text(), '{next_month.strftime('%B %Y')}')]").click()
+        except NoSuchElementException:
+            break
+        # sleep(1.0)
+        soup = BeautifulSoup(driver.execute_script('return document.body.innerHTML'), 'html.parser')
+
+        links = []
+        for item in soup.find_all('a', style='text-decoration: none;'):
+            links.append(urljoin(url, item["href"]))
+
+        for link in links:
+
+            driver.get(link)
+            # sleep(1.0)
+            soup = BeautifulSoup(driver.execute_script('return document.body.innerHTML'), 'html.parser')
+
+            title_split = soup.find('div', class_='book-title').get_text(strip=True).split(', Volume ')
+            title = title_split[0]
+            volume = title_split[1] if len(title_split)>1 else '1'
+
+            synopsis = soup.find('div', class_='synopsis')
+            if synopsis is None:
+                continue
+            details = synopsis.find_all('div', recursive=False)
+            if 'Novel' not in synopsis.get_text():# and 'Novel' not in synopsis[4].get_text():
+                continue
+
+            release_date = parse(synopsis[2].get_text(strip=True).replace('release date:', '')).date()
+            if release_date < date:
+                continue
+
+            format_text = soup.find('div', class_='format-options').get_text()
+            if ('Paperback' in format_text) or ('Hardcover' in format_text):
+                if 'Digital' in format_text:
+                    format_type = 'Physical & Digital'
+                else:
+                    format_type = 'Physical'
+            elif 'Digital' in format_text:
+                    format_type = 'Digital'
+            else:
+                format_type = 'Other'
+
+            release = {'date': release_date, 'title': title, 'volume': volume, 'publisher': 'Square Enix', 'store_link': link, 'format': format_type}
+            result.append(release)
+        
+        m = next_month.month+1 if next_month.month<12 else 1
+        y = next_month.year+1 if next_month.month==1 else next_month.year
+        next_month = next_month.replace(y, m)
+    
     return result
 
 def tentai(date = date.today()): # todo
@@ -300,7 +362,7 @@ def viz_media(date = date.today()):
                 else:
                     format_type = 'Physical'
             elif 'Digital' in format_text:
-                    format_type = 'Physical & Digital'
+                    format_type = 'Digital'
             else:
                 format_type = 'Other'
 
@@ -348,7 +410,7 @@ def yen_press(date = date.today()):
                 else:
                     format_type = 'Physical'
             elif 'Digital' in format_text:
-                    format_type = 'Physical & Digital'
+                    format_type = 'Digital'
             else:
                 format_type = 'Other'
             

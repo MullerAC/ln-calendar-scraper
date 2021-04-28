@@ -258,39 +258,6 @@ def j_novel_club_physical():#gets upcoming physical releases from Right Stuf Ani
     return result
 '''
 
-def square_enix():#opens every release on calendar to get light novels
-    result = []
-    driver.get('https://squareenixmangaandbooks.square-enix-games.com/en-us/release-calendar')#open driver to calendar url
-    next_month = today#set initial calendar month to current month
-    while True:#loops until no more releases are found
-        try:#click calendar month button for the next month
-            #print(f"{next_month.strftime('%B %Y')}")
-            driver.find_element_by_xpath(f"//*[contains(text(), '{next_month.strftime('%B %Y')}')]").click()
-        except NoSuchElementException:#break loop if no next month calendar is found
-            break
-        sleep(sleep_time)#ensure page loads before getting html
-        soup = BeautifulSoup(driver.execute_script('return document.body.innerHTML'), 'html.parser')
-        #print(soup.prettify())
-        for item in soup.find('div', class_='SeriesWrapper-cLJjJY eZpbto sc-gxMtzJ clmQrN sc-bwzfXH liBCIH sc-bdVaJa iHZvIS').find_all('a'):
-            link = f'https://squareenixmangaandbooks.square-enix-games.com{item["href"]}'
-            driver_secondary.get(link)#open secondary driver to calendar url
-            sleep(sleep_time)#ensure page loads before getting html
-            soup_secondary = BeautifulSoup(driver_secondary.execute_script('return document.body.innerHTML'), 'html.parser')
-            synopsis = soup_secondary.find('div', class_='synopsis')
-            if synopsis is None: continue#skips item if it can not find synopsis
-            synopsis = synopsis.find_all('div')
-            if 'Novel' not in synopsis[3].get_text() and 'Novel' not in synopsis[4].get_text(): continue#skips item if it is not a light novel
-            release_date = datetime.strptime(synopsis[2].get_text(strip=True).replace('release date:', ''), '%B %d, %Y').date()
-            if release_date < today: continue#skips item if it is before target date
-            title = soup_secondary.find('div', class_='book-title-section').find('div', class_='book-title').get_text(strip=True)
-            volume = item.find('div').find_all('div')[-1].get_text().replace('Volume', '').strip()
-            format = get_format(soup_secondary.find('div', class_='format-options').get_text())
-            release = {'date': release_date, 'title': title, 'lndb_link': '', 'volume': volume, 'publisher': 'Square Enix', 'store_link': link, 'format': format}
-            result.append(release)
-        next_month = date(next_month.year+(next_month.month==12), next_month.month+1 if next_month.month<12 else 1, 1)
-    print(f'{len(result)} releases found for Square Enix, completed at {perf_counter()-start_time}')
-    return result
-
 def rsa_scrape(url):#scrape needed physical release data for any publisher from Right Stuf Anime, given the url
     result = []
     driver.get(f'https://www.rightstufanime.com{url}')
