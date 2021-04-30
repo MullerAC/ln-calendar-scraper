@@ -191,60 +191,6 @@ def update_sidebar(sidebar_content):#compiles sidebar text and overwrites sideba
 """
 
 '''
-def j_novel_club_beta():#gets all upcoming releases from the calendar, then searches the series nickname on the website to get the full title and link
-    result = []
-    month = today.month
-    year = today.year
-    #url = f'https://j-novel.club/calendar?year={year}&month={month}&type=novel&rel=digital'
-    driver.get('https://j-novel.club/')#open driver to calendar url
-    sleep(sleep_time)
-    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[1]/div[2]/a[3]').click()#go to calendar, using url messes up html
-    sleep(sleep_time)
-    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[2]/div[3]/div/div[5]/div[2]').click()#show only full digital ebook releases
-    sleep(sleep_time)
-    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[2]/div[3]/div/div[7]/div[2]').click()#show only novels
-    sleep(sleep_time)
-    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[2]/div[4]/div/div[1]/div[2]').click()
-    sleep(sleep_time)
-    soup = BeautifulSoup(driver.execute_script('return document.body.innerHTML'), 'html.parser')
- 
-    calendar = soup.find('div', class_='f1owoso1')
-    while 'Nothing to see here!' not in calendar.find('h2').get_text(strip=True):
-        release_date = datetime.strptime(calendar.find('span', class_='f182sjpl').get_text(strip=True), '%B%Y').date()
-        for item in calendar.find_all('div', recursive=False):
-            if item.has_attr('class') and 'ffukg03' in item['class']:#item is a date
-                release_date = release_date.replace(day=int(item.find('h2').find(text=True, recursive=False).strip()[:-2]))
-            elif item.has_attr('class') and 'fhkbwa' in item['class']:#item is a release
-                if release_date < today:
-                    continue#skips item if it is before target date
-                for item_release in item.find_all('a', class_='link f122npxj block'):
-                    link = 'https://j-novel.club' + item_release['href']
-                    volume_tag = item_release.find('span', class_='fpcytuh')
-                    if volume_tag is None:
-                        volume = 'tbd'
-                    else:
-                        volume = volume_tag.get_text().split()[-1]
-                    driver_secondary.get(link)
-                    sleep(sleep_time)
-                    soup2 = BeautifulSoup(driver_secondary.execute_script('return document.body.innerHTML'), 'html.parser')
-                    title = soup2.find('div', class_='ffukg03 header large fl45o3o').get_text(strip=True)
-                    link = driver_secondary.current_url
-                    #title = 'tmp'
-                    
-                    release = {'date': release_date, 'title': title, 'lndb_link': 'N/A', 'volume': volume, 'publisher': 'J-Novel Club', 'store_link': link, 'format': 'Digital'}
-                    result.append(release)
-            else:#item is a header, footer, empty date, or something else
-                continue
-        """year = year + 1 if month == 12 else year
-        month = 1 if month == 12 else month + 1
-        driver.get(f'https://j-novel.club/calendar?year={year}&month={month}&type=novel&rel=digital')#open driver to calendar url"""
-        driver.find_element_by_xpath('/html/body/div/div/div[1]/div[2]/div[4]/div/div[1]/div[2]').click()
-        sleep(sleep_time)
-        soup = BeautifulSoup(driver.execute_script('return document.body.innerHTML'), 'html.parser')
-        calendar = soup.find('div', class_='f1owoso1')
-    print(f'{len(result)} releases found for J-Novel Club (beta/digital), completed at {perf_counter()-start_time}')
-    return result
-
 def j_novel_club_physical():#gets upcoming physical releases from Right Stuf Anime
     result = rsa_scrape('/category/Novels/publisher/J~NOVEL-CLUB,J~NOVEL-HEART?order=custitem_rs_release_date:desc&show=96')#read results from Right Stuf Anime
     for release in result:#iterates through all found releases to update title, link, and publisher
