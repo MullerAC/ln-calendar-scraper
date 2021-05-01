@@ -7,7 +7,7 @@ from selenium.common.exceptions import NoSuchElementException
 from time import perf_counter, sleep
 from urllib.parse import urljoin
 
-def book_walker(date = date.today()):
+def book_walker(date=date.today(), verbose=0):
     """
     Finds all series listed under "Exclusive Light Novels" to get all sreies published by Book Walker.
     Runs all links through book_walker_series() and combines all results and returns them.
@@ -15,16 +15,27 @@ def book_walker(date = date.today()):
     [{'date', 'title', 'volume', 'publisher':'Book Walker', 'store_link', 'format':'Digital'}]
     """
     
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for Book Walker.')
     result = []
     url = 'https://global.bookwalker.jp/'
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
     
-    for series in soup.find('p', text='Exclusive Light Novels').parent.find_all('a'):
-        result.extend(book_walker_series(urljoin(url, series['href']), date))
+    series_list = soup.find('p', text='Exclusive Light Novels').parent.find_all('a')
+    if verbose > 1:
+        print(f'Found {len(series_list)} series.')
+    for series in series_list:
+        series_results = book_walker_series(urljoin(url, series['href']), date)
+        if verbose > 2:
+            print(f'{len(series_results)} found for "{series.get_text(strip=True)}".')
+        result.extend(series_results)
     
+    if verbose > 0:
+        print(f'{len(result)} release(s) found for Book Walker, completed in {perf_counter()-start_time} seconds.')
     return result
     
-def book_walker_series(url, date = date.today()):
+def book_walker_series(url, date=date.today()):
     """
     Takes a valid Book Walker series link (ex: https://global.bookwalker.jp/series/135449/the-ryuos-work-is-never-done/)
     and date in the future.
@@ -61,7 +72,7 @@ def book_walker_series(url, date = date.today()):
     
     return result
 
-def cross_infinite_world(date = date.today()): # todo
+def cross_infinite_world(date=date.today(), verbose=0): # todo
     '''
     Cross Infinite World has no calendar on their website.
     Physical and digital releases only available on Amazon.
@@ -70,10 +81,16 @@ def cross_infinite_world(date = date.today()): # todo
     []
     '''
     
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for Cross Infinite World.')
     result = []
+
+    if verbose > 0:
+        print(f'{len(result)} release(s) found for Cross Infinite World, completed in {perf_counter()-start_time} seconds.')
     return result
 
-def dark_horse(date = date.today()):
+def dark_horse(date=date.today(), verbose=0):
     """
     Dark Horse has no calendar or way to search for only light novels (the also release many other types of books).
     Runs a search for Vampire Hunter D (Dark Horse's only active license) and searches that page for upcoming releases.
@@ -81,17 +98,25 @@ def dark_horse(date = date.today()):
     [{'date', 'title', 'volume', 'publisher':'Book Walker', 'store_link', 'format':'Digital'}]
     """
     
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for Dark Horse.')
     result = []
     url = f'https://www.darkhorse.com/Search/Browse/"vampire+hunter+d"---Books---{date.strftime("%B+%Y")}-December+2099/Ppydwkt8'
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
     
-    for item in soup.find_all('div', class_='list_item'):
+    items = soup.find_all('div', class_='list_item')
+    if verbose > 2:
+        print(f'Found {len(items)} items.')
+    for item in items:
         href = item.find('a')['href']
         result.append(dark_horse_volume(urljoin(url, href), date))
     
+    if verbose > 0:
+        print(f'{len(result)} release(s) found for Dark Horse, completed in {perf_counter()-start_time} seconds.')
     return result
 
-def dark_horse_volume(url, date = date.today()): # need to double check on format
+def dark_horse_volume(url, date=date.today()): # todo: need to double check on format
     """
     Dark Horse calendar does not have all information on it,
     need to check individual volume pages to get release date.
@@ -115,14 +140,15 @@ def dark_horse_volume(url, date = date.today()): # need to double check on forma
     release_date = parse(details[0].get_text(strip=True)).date()
     # format_type = details[1].get_text(strip=True)
     
-    return {'date': release_date,
-            'title': title,
-            'volume': volume,
-            'publisher': 'Dark Horse',
-            'store_link': url,
-            'format': 'Physical & Digital'}
+    release = {'date': release_date,
+               'title': title,
+               'volume': volume,
+               'publisher': 'Dark Horse',
+               'store_link': url,
+               'format': 'Physical & Digital'}
+    return release
 
-def j_novel_club(date = date.today()): # todo
+def j_novel_club(date=date.today(), verbose=0): # todo: physicals, get rid of Selenium
     '''
     J-Novel Club's website is currently in flux;
     the calendar page often fails to load correctly.
@@ -132,24 +158,9 @@ def j_novel_club(date = date.today()): # todo
     []
     '''
 
-    # This section is temporary, as the calendar doesn't load correctly by entering the url
-    driver_options = webdriver.ChromeOptions()
-    driver_options.add_argument('headless')
-    driver_options.add_argument('log-level=2')
-    driver = webdriver.Chrome(options=driver_options)
-    url = 'https://j-novel.club/'
-    driver.get(url) # open driver to calendar url
-    sleep(0.5)
-    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[1]/div[2]/a[3]').click() # go to calendar, using url messes up html
-    sleep(0.5)
-    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[2]/div[3]/div/div[5]/div[2]').click() # show only full digital ebook releases
-    sleep(0.5)
-    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[2]/div[3]/div/div[7]/div[2]').click() # show only novels
-    sleep(0.5)
-    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[2]/div[4]/div/div[1]/div[2]').click()
-    sleep(0.5)
-    soup = BeautifulSoup(driver.execute_script('return document.body.innerHTML'), 'html.parser')
-
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for J-Novel Club.')
     result = []
     """
     month = date.month
@@ -157,16 +168,38 @@ def j_novel_club(date = date.today()): # todo
     url = f'https://j-novel.club/calendar?year={year}&month={month}&type=novel&rel=digital'
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
     """
+
+    # This section is temporary, as the calendar doesn't load correctly by entering the url
+    driver_options = webdriver.ChromeOptions()
+    driver_options.add_argument('headless')
+    driver_options.add_argument('log-level=2')
+    driver = webdriver.Chrome(options=driver_options)
+    url = 'https://j-novel.club/'
+    driver.get(url)
+    sleep(0.5)
+    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[1]/div[2]/a[3]').click()
+    sleep(0.5)
+    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[2]/div[3]/div/div[5]/div[2]').click()
+    sleep(0.5)
+    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[2]/div[3]/div/div[7]/div[2]').click()
+    sleep(0.5)
+    driver.find_element_by_xpath('/html/body/div/div/div[1]/div[2]/div[4]/div/div[1]/div[2]').click()
+    sleep(0.5)
+    soup = BeautifulSoup(driver.execute_script('return document.body.innerHTML'), 'html.parser')
  
     calendar = soup.find('div', class_='f1owoso1')
     while 'Nothing to see here!' not in calendar.find('h2').get_text():
-        release_date = datetime.strptime(calendar.find('span', class_='f182sjpl').get_text(strip=True), '%B%Y').date()
+
+        release_date = parse(calendar.find('span', class_='f182sjpl').get_text(strip=True)).date()
+        if verbose > 2:
+            print(f'Scraping calendar for {release_date.strptime('%B %Y')}.')
+
         for item in calendar.find_all('div', recursive=False):
-            if item.has_attr('class') and 'ffukg03' in item['class']:#item is a date
+            if item.has_attr('class') and 'ffukg03' in item['class']:
                 release_date = release_date.replace(day=int(item.find('h2').find(text=True, recursive=False).strip()[:-2]))
-            elif item.has_attr('class') and 'fhkbwa' in item['class']:#item is a release
+            elif item.has_attr('class') and 'fhkbwa' in item['class']:
                 if release_date < date:
-                    continue#skips item if it is before target date
+                    continue
                 for item_release in item.find_all('a', class_='link f122npxj block'):
                     link = urljoin(url, item_release['href'])
                     volume_tag = item_release.find('span', class_='fpcytuh')
@@ -179,21 +212,32 @@ def j_novel_club(date = date.today()): # todo
                     title = title_tag.get_text(strip=True)
                     link = 'https://j-novel.club/series/' + title_tag['id'] + link[link.rfind('#'):]
                     
-                    release = {'date': release_date, 'title': title, 'lndb_link': 'N/A', 'volume': volume, 'publisher': 'J-Novel Club', 'store_link': link, 'format': 'Digital'}
+                    release = {'date': release_date,
+                               'title': title,
+                               'volume': volume,
+                               'publisher': 'J-Novel Club',
+                               'store_link': link,
+                               'format': 'Digital'}
                     result.append(release)
-            else:#item is a header, footer, empty date, or something else
+            else:
                 continue
-        """year = year + 1 if month == 12 else year
+
+        """
+        year = year + 1 if month == 12 else year
         month = 1 if month == 12 else month + 1
-        driver.get(f'https://j-novel.club/calendar?year={year}&month={month}&type=novel&rel=digital')#open driver to calendar url"""
+        url = f'https://j-novel.club/calendar?year={year}&month={month}&type=novel&rel=digital'
+        soup = BeautifulSoup(BeautifulSoup(requests.get(url).text, 'html.parser')
+        """
         driver.find_element_by_xpath('/html/body/div/div/div[1]/div[2]/div[4]/div/div[1]/div[2]').click()
         sleep(0.5)
         soup = BeautifulSoup(driver.execute_script('return document.body.innerHTML'), 'html.parser')
         calendar = soup.find('div', class_='f1owoso1')
-    #print(f'{len(result)} releases found for J-Novel Club (beta/digital), completed at {perf_counter()-start_time}')
+    
+    if verbose > 0:
+        print(f'{len(result)} release(s) found for J-Novel Club, completed in {perf_counter()-start_time} seconds.')
     return result
 
-def one_peace(date = date.today()): # todo
+def one_peace(date=date.today(), verbose=0): # todo
     '''
     One Peace has no calendar on their website.
     Physical and digital releases only available on Amazon.
@@ -202,10 +246,16 @@ def one_peace(date = date.today()): # todo
     []
     '''
     
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for One Peace Books.')
     result = []
+
+    if verbose > 0:
+        print(f'{len(result)} releases found for One Peace Books, completed in {perf_counter()-start_time} seconds.')
     return result
 
-def seven_seas(date = date.today()):
+def seven_seas(date = date.today(), verbose=0):
     '''
     Seven Seas has two calendars:
     one for physical, and one for digital.
@@ -214,18 +264,21 @@ def seven_seas(date = date.today()):
     [{'date', 'title', 'volume', 'publisher':'Seven Seas', 'store_link', 'format'}]
     '''
     
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for Seven Seas.')
     result = []
     urls = [('https://sevenseasentertainment.com/digital/', 'Digital'), ('https://sevenseasentertainment.com/release-dates/', 'Physical')]
     
     for url, format_type in urls:
+        if verbose > 2:
+            print('Scraping {format_type} calendar.}')
         soup = BeautifulSoup(requests.get(url).text, 'html.parser')
         
         for item in soup.find_all('tr', id='volumes'):
             cells = item.find_all('td')
             
-            date_tag = cells[0]
-            #release_date = datetime.strptime(date_tag.get_text(strip=True), '%Y/%m/%d').date()
-            release_date = parse(date_tag.get_text(strip=True)).date()
+            release_date = parse(cells[0].get_text(strip=True)).date()
             if release_date < date:
                 continue
                 
@@ -235,8 +288,7 @@ def seven_seas(date = date.today()):
             volume = title_split[-1] if len(title_split)>1 else '1 [End]'
             link = urljoin(url, title_tag['href'])
                 
-            format_tag = cells[2]
-            if 'Novel' not in format_tag.get_text():
+            if 'Novel' not in cells[2].get_text():
                 continue
             
             release = {'date': release_date,
@@ -247,9 +299,11 @@ def seven_seas(date = date.today()):
                        'format': format_type}
             result.append(release)
     
+    if verbose > 0:
+        print(f'{len(result)} releases found for Seven Seas, completed in {perf_counter()-start_time} seconds.')
     return result
 
-def sol_press(date = date.today()):
+def sol_press(date=date.today(), verbose=0):
     '''
     Sol Press only lists digital releases on their calendar.
     May need to revisit if they add physicals.
@@ -258,6 +312,9 @@ def sol_press(date = date.today()):
     [{'date', 'title', 'volume', 'publisher':'Sol Press', 'store_link', 'format':'Digital'}]
     '''
 
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for Sol Press.')
     result = []
     url = 'https://solpress.co/light-novels'
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
@@ -276,12 +333,19 @@ def sol_press(date = date.today()):
         if release_date < date:
             break
 
-        release = {'date': release_date, 'title': title, 'volume': volume, 'publisher': 'Sol Press', 'store_link': link, 'format': 'Digital'}
+        release = {'date': release_date,
+                   'title': title,
+                   'volume': volume,
+                   'publisher': 'Sol Press',
+                   'store_link': link,
+                   'format': 'Digital'}
         result.append(release)
 
+    if verbose > 0:
+        print(f'{len(result)} releases found for Sol Press, completed in {perf_counter()-start_time} seconds.')
     return result
 
-def square_enix(date = date.today()): # todo
+def square_enix(date = date.today()): # todo: testing
     '''
     Square Enix calendar does not have items in base html,
     Selenium will need to be used.
@@ -292,6 +356,9 @@ def square_enix(date = date.today()): # todo
     []
     '''
     
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for Square Enix.')
     result = []
     url = 'https://squareenixmangaandbooks.square-enix-games.com/en-us/release-calendar'
     driver_options = webdriver.ChromeOptions()
@@ -302,7 +369,8 @@ def square_enix(date = date.today()): # todo
     next_month = date
 
     while True:
-
+        if verbose > 2:
+            print(f'Scraping calendar for {next_month.strptime('%B %Y')}.')
         try:
             driver.find_element_by_xpath(f"//*[contains(text(), '{next_month.strftime('%B %Y')}')]").click()
         except NoSuchElementException:
@@ -353,9 +421,11 @@ def square_enix(date = date.today()): # todo
         y = next_month.year+1 if next_month.month==1 else next_month.year
         next_month = next_month.replace(y, m)
     
+    if verbose > 0:
+        print(f'{len(result)} releases found for Square Enix, completed in {perf_counter()-start_time} seconds.')
     return result
 
-def tentai(date = date.today()): # todo
+def tentai(date = date.today(), verbose=0): # todo
     '''
     Tentai calendar is very oddly arranged,
     and contains much unuseful information.
@@ -363,11 +433,16 @@ def tentai(date = date.today()): # todo
     Returns empty list:
     []
     '''
-    
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for Tentai Books.')
     result = []
+
+    if verbose > 0:
+        print(f'{len(result)} releases found for Tentai Books, completed in {perf_counter()-start_time} seconds.')
     return result
 
-def vertical(date = date.today()): # todo
+def vertical(date = date.today(), verbose=0): # todo
     '''
     Vertical may be renames Kodansha Books.
     The new website has a calendar,
@@ -377,11 +452,16 @@ def vertical(date = date.today()): # todo
     Returns empty list:
     []
     '''
-    
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for Vertical.')
     result = []
+
+    if verbose > 0:
+        print(f'{len(result)} releases found for Vertical, completed in {perf_counter()-start_time} seconds.')
     return result
 
-def viz_media(date = date.today()):
+def viz_media(date = date.today()), verbose=0: # todo: use next_month variable (as in square_enix()) to make a verbose level 2 for each month scraped
     '''
     Viz calendar has a different page for each month,
     easily accessed by by putting the year and month into the url.
@@ -389,6 +469,9 @@ def viz_media(date = date.today()):
     [{'date', 'title', 'volume', 'publisher':'Sol Press', 'store_link', 'format':'Digital'}]
     '''
 
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for Viz Media.')
     result = []
     url = 'https://www.viz.com/calendar/'
     m, y = date.month, date.year
@@ -432,9 +515,11 @@ def viz_media(date = date.today()):
         y = y+1 if m==1 else y
         soup = BeautifulSoup(requests.get(url + f'{y}/{m}').text, 'html.parser')
 
+    if verbose > 0:
+        print(f'{len(result)} releases found for Viz Media, completed in {perf_counter()-start_time} seconds.')
     return result
 
-def yen_press(date = date.today()):
+def yen_press(date = date.today(), verbose=0):
     '''
     Yen On calendar has only light novels and a section for each month,
     but releases are not ordered by date within each month.
@@ -442,6 +527,9 @@ def yen_press(date = date.today()):
     [{'date', 'title', 'volume', 'publisher':'Yen Press', 'store_link', 'format'}]
     '''
 
+    start_time = perf_counter()
+    if verbose > 1:
+        print('Starting scraping for Yen Press.')
     result = []
     url = 'https://yenpress.com/yen-on/'
     soup = BeautifulSoup(requests.get(url).text, 'html.parser')
@@ -476,4 +564,6 @@ def yen_press(date = date.today()):
             release = {'date': release_date, 'title': title, 'volume': volume, 'publisher': 'Yen Press', 'store_link': link, 'format': format_type}
             result.append(release)
     
+    if verbose > 0:
+        print(f'{len(result)} releases found for Yen Press, completed in {perf_counter()-start_time} seconds.')
     return result
