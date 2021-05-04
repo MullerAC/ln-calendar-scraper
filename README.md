@@ -7,6 +7,7 @@ List of publishers to be supported:
 working:
 - Bookwalker
 - Dark Horse
+- J-Novel Club
 - Seven Seas
 - Sol Press
 - Viz Media
@@ -14,9 +15,7 @@ working:
 
 to do:
 - Cross Infinite World
-- J-Novel Club
 - One Peace Books
 - Square Enix
 - Tentai Books
-- Tokyo Pop
 - Vertical
