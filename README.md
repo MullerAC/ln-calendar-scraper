@@ -10,12 +10,18 @@ working:
 - J-Novel Club
 - Seven Seas
 - Sol Press
+- Square Enix
 - Viz Media
 - Yen Press
 
-to do:
+not working:
 - Cross Infinite World
 - One Peace Books
-- Square Enix
 - Tentai Books
 - Vertical
+- Yen Audio
+
+pther to-do:
+-create (helper functions)
+- output to reddit formatting/markup
+- split out volume, series, and calendar scraping for all sites
