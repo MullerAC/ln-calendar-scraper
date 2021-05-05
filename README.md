@@ -21,7 +21,8 @@ not working:
 - Vertical
 - Yen Audio
 
-pther to-do:
--create (helper functions)
+other to-do:
+- create helper functions
+- get info from Amazon?
 - output to reddit formatting/markup
 - split out volume, series, and calendar scraping for all sites
