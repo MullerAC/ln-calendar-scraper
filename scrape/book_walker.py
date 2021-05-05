@@ -5,12 +5,12 @@ import requests
 from time import perf_counter
 from urllib.parse import urljoin
 
-def scrape(start_date=date.today(), verbose=0):
+def scrape(start_date=date.min, verbose=0):
     """
     Finds all series listed under "Exclusive Light Novels" to get all sreies published by Book Walker.
     Runs all links through book_walker_series() and combines all results and returns them.
     Returns a list of dictionaries:
-    [{'date', 'title', 'volume', 'publisher':'Book Walker', 'store_link', 'format':'Digital'}]
+    [{'date', 'title', 'volume', 'publisher':'Book Walker', 'publisher_link', 'format':'Digital'}]
     """
     
     start_time = perf_counter()
@@ -24,7 +24,7 @@ def scrape(start_date=date.today(), verbose=0):
     if verbose > 1:
         print(f'Found {len(series_list)} series.')
     for series in series_list:
-        series_results = book_walker_series(urljoin(url, series['href']), start_date)
+        series_results = series(urljoin(url, series['href']), start_date)
         if verbose > 2:
             print(f'{len(series_results)} found for "{series.get_text(strip=True)}".')
         result.extend(series_results)
@@ -33,13 +33,14 @@ def scrape(start_date=date.today(), verbose=0):
         print(f'{len(result)} release(s) found for Book Walker, completed in {perf_counter()-start_time} seconds.')
     return result
     
-def series_scrape(url, start_date=date.today()):
+def series(url, start_date=date.min):
     """
-    Takes a valid Book Walker series link (ex: https://global.bookwalker.jp/series/135449/the-ryuos-work-is-never-done/)
-    and date in the future.
+    Takes a valid Book Walker series link
+    (ex: https://global.bookwalker.jp/series/135449/the-ryuos-work-is-never-done/)
+    and datetime.date object.
     Sorts volumes by date and save information until it comes across a date before the given date.
     Returns a list of dictionaries:
-    [{'date', 'title', 'volume', 'publisher':'Book Walker', 'store_link', 'format':'Digital'}]
+    [{'date':datetime.date, 'title':string, 'volume':string, 'publisher':'Book Walker', 'publisher_link':string, 'format':'Digital'}]
     """
     
     result = []
@@ -64,8 +65,34 @@ def series_scrape(url, start_date=date.today()):
                    'title': title,
                    'volume': volume,
                    'publisher': 'Book Walker',
-                   'store_link': link,
+                   'publisher_link': link,
                    'format': 'Digital'}
         result.append(release)
     
+    return result
+
+def volume(url):
+    """
+    Takes a valid Book Walker series link
+    (ex: https://global.bookwalker.jp/de33fea597-f52a-4db8-8bee-d0c2339e6557/the-ryuos-work-is-never-done-vol-11/)
+    and scrapes all relavent information.
+    Returns a dictionary:
+    {'date':datetime.date, 'title':string, 'volume':string, 'publisher':string, 'publisher_link':string, 'format':'Digital'}
+    """
+
+    soup = BeautifulSoup(requests.get(url).text, 'html.parser')
+
+    title_text = soup.find('h1', {'itemprop':'name'}).get_text(strip=True).split(', Vol.')
+    title = title_text[0].strip()
+    volume = title_text[1].split('-')[0].strip()
+
+    release_date = parse(soup.find('span', {'itemprop':'productionDate'}).get_text(strip=True).split(' (')[0]).date()
+    publisher = soup.find('span', {'itemprop':'brand'}).get_text(strip=True)
+
+    result =  {'date': release_date,
+               'title': title,
+               'volume': volume,
+               'publisher': publisher,
+               'publisher_link': url,
+               'format': 'Digital'}
     return result
