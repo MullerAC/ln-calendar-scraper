@@ -1,3 +1,9 @@
+"""
+To Do:
+- scrape physicals from Right Stuf Anime
+- remove selenium use once site works properly again
+"""
+
 from bs4 import BeautifulSoup
 from datetime import date
 from dateutil.parser import parse
@@ -7,14 +13,15 @@ from selenium.common.exceptions import NoSuchElementException
 from time import perf_counter, sleep
 from urllib.parse import urljoin
 
-def scrape(start_date=date.today(), verbose=0): # todo: physicals, get rid of Selenium, split volume scraping into its own function
+def scrape(start_date=date.min, verbose=0):
     '''
     J-Novel Club's website is currently in flux;
     the calendar page often fails to load correctly.
+    Uses Selenium to load page correctly through homepage.
+    This will be removed when the site works correctly again.
     It also does not currently have physical releases listed, only digital.
-    To be completed later.
-    Returns empty list:
-    []
+    Returns a list of dictionaries:
+    [{'date':datetime.date, 'title':string, 'volume':string, 'publisher':'J-Novel Club', 'publisher_link':string, 'format':'Digital'}]
     '''
 
     start_time = perf_counter()
@@ -94,4 +101,74 @@ def scrape(start_date=date.today(), verbose=0): # todo: physicals, get rid of Se
     
     if verbose > 0:
         print(f'{len(result)} release(s) found for J-Novel Club, completed in {perf_counter()-start_time} seconds.')
+    return result
+
+def series(url, start_date=date.min):
+    '''
+    Takes in a valid J-Novel Club series link
+    (ex: https://j-novel.club/series/mapping-the-trash-tier-skill-that-got-me-into-a-top-tier-party)
+    and datetime.date object.
+    Scrapes from the bottom up,
+    stopping when coming across a volume with a date before start_date.
+    J-Novel Club has only digital releases on the site for now.
+    Returns a list of dictionaries:
+    [{'date':datetime.date, 'title':string, 'volume':string, 'publisher':'J-Novel Club', 'publisher_link':string, 'format':'Digital'}]
+    '''
+
+    result = []
+    soup = BeautifulSoup(requests.get(url).text, 'html.parser')
+    
+    title = soup.find('div', {'class':'ffukg03 header large fl45o3o'}).get_text(strip=True)
+
+    items = soup.find('div', {'class':'f1k2es0r'}).find_all('div', {'class':'f1k2es0r'})
+    items.reverse()
+
+    for item in items:
+        volume_tag = item.find('a')
+        volume = volume_tag.get_text(strip=True)
+        link = url + volume_tag['href']
+        release_date = parse(soup.find('div', {'class':'f1i3amjc'}).find('div', {'class':'f1oyfch5 text'}).get_text(strip=True)).date()
+
+        if release_date < start_date:
+            break
+
+        release = {'date': release_date,
+                   'title': title,
+                   'volume': volume,
+                   'publisher': 'J-Novel Club',
+                   'store_link': link,
+                   'format': 'Digital'}
+        result.append(release)
+
+    return result
+
+def volume(url):
+    '''
+    Takes in a valid J-Novel Club volume link
+    (ex: https://j-novel.club/series/mapping-the-trash-tier-skill-that-got-me-into-a-top-tier-party#volume-2)
+    and scrapes all relevant data from there.
+    J-Novel Club has only digital releases on the site for now.
+    Returns a list of dictionaries:
+    [{'date':datetime.date, 'title':string, 'volume':string, 'publisher':'J-Novel Club', 'publisher_link':string, 'format':'Digital'}]
+    '''
+
+    result = []
+    soup = BeautifulSoup(requests.get(url).text, 'html.parser')
+
+    title = soup.find('div', {'class':'ffukg03 header large fl45o3o'}).get_text(strip=True)
+
+    volume_href = '#' + url.split('#')[-1]
+    volume_div = soup.find('a', {'href':volume_href}).parent.parent.parent.parent.parent
+
+    volume_tag = volume_div.find('a')
+    volume = volume_tag.get_text(strip=True)
+    link = url + volume_tag['href']
+    release_date = parse(volume_div.find('div', {'class':'f1i3amjc'}).find('div', {'class':'f1oyfch5 text'}).get_text(strip=True)).date()
+
+    release = {'date': release_date,
+               'title': title,
+               'volume': volume,
+               'publisher': 'J-Novel Club',
+               'store_link': url,
+               'format': 'Digital'}
     return result
